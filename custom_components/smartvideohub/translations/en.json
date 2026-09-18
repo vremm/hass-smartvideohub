@@ -1,66 +1,40 @@
 {
   "config": {
-    "flow_title": "{name}",
     "step": {
       "user": {
-        "title": "Blackmagic Design Setup",
-        "description": "Enter Blackmagic Design Device IP",
+        "title": "Connect to your Blackmagic Video Hub",
+        "description": "Enter the IP address of your Videohub device.",
         "data": {
-          "host": "Host",
-          "port": "Port (9977 for WebPresenter, 9995 for Teranex)"
+          "host": "Host IP address",
+          "port": "Port (default 9990)",
+          "hide_default_inputs": "Hide inputs that still have default names"
         }
       }
     },
-    "abort": {
-      "already_in_progress": "Configuration is already in progress.",
-      "already_configured": "This device is already configured."
-    },
     "error": {
-      "cannot_connect": "Connect to Host Failed",
-      "communication_error": "Communication Error"
+      "cannot_connect": "Failed to connect — check the IP address and port",
+      "communication_error": "Connected but no response from device — check firmware",
+      "unknown": "Unknown error occurred"
+    },
+    "abort": {
+      "already_configured": "This Videohub is already configured"
     }
   },
   "entity": {
-    "select": {
-      "video_mode": {
-        "name": "Video Mode"
-      },
-      "platform": {
-        "name": "Platform",
-        "state": {
-          "local": "Local Platform"
-        }
-      },
-      "quality_level": {
-        "name": "Quality Level"
-      },
-      "lut": {
-        "name": "LUT",
-        "state": {
-          "none": "None",
-          "Lut 0": "LUT Table 1",
-          "Lut 1": "LUT Table 2"
-        }
-      }
-    },
-    "text": {
-      "stream_key": {
-        "name": "Stream Key"
-      }
-    },
     "button": {
-      "reboot": {
-        "name": "Reboot Device"
-      }
+      "reboot": "Reboot"
+    },
+    "select": {
+      "platform": "Stream Platform",
+      "video_mode": "Video Mode",
+      "quality_level": "Quality Level",
+      "lut": "LUT Selection"
     },
     "switch": {
-      "streaming": {
-        "name": "Streaming",
-        "state": {
-          "off": "Idle",
-          "on": "On Air"
-        }
-      }
+      "streaming": "Streaming"
+    },
+    "text": {
+      "stream_key": "Stream Key"
     }
   }
 }

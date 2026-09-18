@@ -1,55 +1,78 @@
+"""Button platform for the Smart Video Hub integration.
+
+Provides a reboot button for all device types.
+"""
+
+from __future__ import annotations
+
 import logging
 
-from homeassistant.components.button import ENTITY_ID_FORMAT, ButtonEntity
-from homeassistant.helpers.entity import async_generate_entity_id, DeviceInfo
-from .const import *
+from homeassistant.components.button import ButtonEntity
+from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
+
+from .const import DOMAIN
+from .pyvideohub import SmartVideoHub
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up SmartVideoHub Device"""
-    dev = hass.data[DOMAIN][config_entry.entry_id]['client']
+ENTITY_ID_FORMAT = "button.{}"
 
-    deviceInfo = DeviceInfo(
+
+async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
+    """Set up Smart Video Hub button platform."""
+    dev: SmartVideoHub = hass.data[DOMAIN][config_entry.entry_id]["client"]
+
+    device_info = DeviceInfo(
         identifiers={(DOMAIN, config_entry.entry_id)},
-        name= dev.name,
-        manufacturer="BlackMagic Design",
-        model=dev.model
+        name=dev.name,
+        manufacturer="Blackmagic Design",
+        model=dev.model,
     )
-    if dev.model == MODEL_STREAMING:
-        async_add_entities(
-            [
-                StreamingButtonDevice(
-                    hass,
-                    dev,
-                    "reboot",
-                    deviceInfo
-                )
-            ],
-            True,
-        )
 
-class StreamingButtonDevice(ButtonEntity):
+    entity_prefix = dev.attrs.get("Unique ID", dev.name)
+    async_add_entities(
+        [
+            VideoHubRebootButton(
+                hass,
+                dev,
+                entity_prefix,
+                device_info,
+            )
+        ],
+        True,
+    )
+
+
+class VideoHubRebootButton(ButtonEntity):
+    """Button entity for rebooting the Videohub device."""
+
     _attr_has_entity_name = True
     _attr_should_poll = False
+    _attr_translation_key = "reboot"
+    _attr_icon = "mdi:restart"
 
     def __init__(
         self,
         hass,
-        dev,
-        translation_key,
-        deviceInfo
-    ):
-        """Initialize new zone."""
+        dev: SmartVideoHub,
+        entity_prefix: str,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the reboot button."""
+        self.hass = hass
         self._dev = dev
-        self._attr_translation_key = translation_key
         self._attr_unique_id = async_generate_entity_id(
             ENTITY_ID_FORMAT,
-            dev.attrs.get("Unique ID", "")+"/"+translation_key,
+            f"{entity_prefix}/reboot",
             hass=hass,
         )
-        self._attr_device_info = deviceInfo
+        self._attr_device_info = device_info
+
+    @property
+    def available(self) -> bool:
+        """Return whether the device is connected."""
+        return self._dev.connected
 
     async def async_press(self) -> None:
-        """Update the current selected option."""
+        """Press the button — reboot the device."""
         self._dev.reboot()

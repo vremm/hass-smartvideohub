@@ -1,7 +1,12 @@
 {
     "name": "Smart Video Hub",
     "domains": [
-        "media_player"
+        "media_player",
+        "lock",
+        "select",
+        "text",
+        "button",
+        "switch"
     ],
     "render_readme": true
 }

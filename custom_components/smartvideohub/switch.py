@@ -1,81 +1,100 @@
+"""Switch platform for the Smart Video Hub integration.
+
+Provides a streaming on/off switch for Web Presenter devices.
+"""
+
+from __future__ import annotations
+
 import logging
 
-from homeassistant.components.switch import ENTITY_ID_FORMAT, SwitchEntity, SwitchDeviceClass
-from homeassistant.helpers.entity import async_generate_entity_id, DeviceInfo
-from .const import *
+from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
+from homeassistant.core import callback
+from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
+
+from .const import DOMAIN
+from .pyvideohub import MODEL_STREAMING, SmartVideoHub
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up SmartVideoHub Device"""
-    dev = hass.data[DOMAIN][config_entry.entry_id]['client']
+ENTITY_ID_FORMAT = "switch.{}"
 
-    deviceInfo = DeviceInfo(
+
+async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
+    """Set up Smart Video Hub switch platform."""
+    dev: SmartVideoHub = hass.data[DOMAIN][config_entry.entry_id]["client"]
+
+    device_info = DeviceInfo(
         identifiers={(DOMAIN, config_entry.entry_id)},
-        name= dev.name,
-        manufacturer="BlackMagic Design",
-        model=dev.model
+        name=dev.name,
+        manufacturer="Blackmagic Design",
+        model=dev.model,
     )
+
     if dev.model == MODEL_STREAMING:
+        entity_prefix = dev.attrs.get("Unique ID", dev.name)
         async_add_entities(
             [
                 StreamingSwitchDevice(
                     hass,
                     dev,
+                    entity_prefix,
                     "streaming",
-                    deviceInfo
+                    device_info,
                 )
             ],
             True,
         )
 
+
 class StreamingSwitchDevice(SwitchEntity):
+    """Switch entity for streaming on/off."""
+
     _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_device_class = SwitchDeviceClass.SWITCH
     _attr_icon = "mdi:ip"
+    _attr_translation_key = "streaming"
 
     def __init__(
         self,
         hass,
-        dev,
-        translation_key,
-        deviceInfo
-    ):
-        """Initialize new zone."""
+        dev: SmartVideoHub,
+        entity_prefix: str,
+        translation_key: str,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the streaming switch."""
+        self.hass = hass
         self._dev = dev
-        self._attr_translation_key = translation_key
         self._attr_unique_id = async_generate_entity_id(
             ENTITY_ID_FORMAT,
-            dev.attrs.get("Unique ID", "")+"/"+translation_key,
+            f"{entity_prefix}/{translation_key}",
             hass=hass,
         )
-        self._attr_device_info = deviceInfo
-        dev.add_update_callback(self.update_callback)
+        self._attr_device_info = device_info
+        self._dev.add_update_callback(self.update_callback)
 
     @property
-    def is_on(self):
-        """Retrieve latest state."""
-        if self._attr_translation_key == "streaming":
-            if self._dev.stream_state.get("Status") == "Idle":
-                return False
-            else:
-                return True
+    def is_on(self) -> bool:
+        """Return True if streaming is active."""
+        return self._dev.stream_state.get("Status") != "Idle"
 
-        self._attr_available = self._dev.connected
+    @property
+    def available(self) -> bool:
+        """Return whether the device is connected."""
+        return self._dev.connected
 
     async def async_turn_on(self) -> None:
-        """Update the current selected option."""
-        if self._attr_translation_key == "streaming":
-            self._dev.set_steam_state(True)
+        """Start streaming."""
+        self._dev.set_stream_state(True)
         self.async_write_ha_state()
 
     async def async_turn_off(self) -> None:
-        """Update the current selected option."""
-        if self._attr_translation_key == "streaming":
-            self._dev.set_steam_state(False)
+        """Stop streaming."""
+        self._dev.set_stream_state(False)
         self.async_write_ha_state()
 
-    def update_callback(self, output_id=0):
-        """Called when data is received by pySmartVideoHub"""
-        self.schedule_update_ha_state(False)
+    @callback
+    def update_callback(self, output_id: int | bool = 0) -> None:
+        """Called when data is received."""
+        self.async_write_ha_state()
