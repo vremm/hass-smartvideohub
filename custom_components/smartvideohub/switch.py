@@ -77,12 +77,23 @@ class StreamingSwitchDevice(SwitchEntity):
     @property
     def is_on(self) -> bool:
         """Return True if streaming is active."""
-        return self._dev.stream_state.get("Status") != "Idle"
+        return self._dev.stream_state.get("Status") not in ("Idle", None)
 
     @property
     def available(self) -> bool:
         """Return whether the device is connected."""
         return self._dev.connected
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Return stream state details."""
+        state = self._dev.get_stream_state()
+        return {
+            "status": state.get("Status", "Idle"),
+            "bitrate": state.get("Bitrate"),
+            "duration": state.get("Duration"),
+            "cache_used": state.get("Cache Used"),
+        }
 
     async def async_turn_on(self) -> None:
         """Start streaming."""

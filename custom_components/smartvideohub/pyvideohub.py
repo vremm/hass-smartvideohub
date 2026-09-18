@@ -53,6 +53,11 @@ class SmartVideoHub(asyncio.Protocol):
         self.stream_set: dict[str, str] = {}
         self.stream_state: dict[str, str] = {}
         self.teranex_set: dict[str, str] = {}
+        self.audio_settings: dict[str, str] = {}
+        self.version_info: dict[str, str] = {}
+        self.network_info: dict[str, str] = {}
+        self.network_interfaces: dict[int, dict[str, str]] = {}
+        self.stream_xml_files: str = ""
         self.model: str | None = None
         self.name: str = ""
 
@@ -281,6 +286,37 @@ class SmartVideoHub(asyncio.Protocol):
             if len(line_conf) == 2 and line_conf[1].strip() != "":
                 self.stream_state[line_conf[0]] = line_conf[1].strip()
 
+        elif block == "AUDIO SETTINGS":
+            line_conf = line.split(": ", 1)
+            if len(line_conf) == 2 and line_conf[1].strip() != "":
+                self.audio_settings[line_conf[0]] = line_conf[1].strip()
+
+        elif block == "VERSION":
+            line_conf = line.split(": ", 1)
+            if len(line_conf) == 2 and line_conf[1].strip() != "":
+                self.version_info[line_conf[0]] = line_conf[1].strip()
+
+        elif block == "NETWORK":
+            line_conf = line.split(": ", 1)
+            if len(line_conf) == 2 and line_conf[1].strip() != "":
+                self.network_info[line_conf[0]] = line_conf[1].strip()
+
+        elif block.startswith("NETWORK INTERFACE"):
+            # Network interface blocks have a number in the header
+            try:
+                iface_num = int(block.split()[-1])
+            except (ValueError, IndexError):
+                iface_num = 0
+            line_conf = line.split(": ", 1)
+            if len(line_conf) == 2 and line_conf[1].strip() != "":
+                self.network_interfaces.setdefault(iface_num, {})[line_conf[0]] = line_conf[1].strip()
+
+        elif block == "STREAM XML":
+            line_conf = line.split(": ", 1)
+            if len(line_conf) == 2:
+                if line_conf[0] == "Files":
+                    self.stream_xml_files = line_conf[1].strip()
+
         elif block == "TERANEX MINI DEVICE":
             self.model = MODEL_TERANEX
             line_conf = line.split(": ", 1)
@@ -471,6 +507,37 @@ class SmartVideoHub(asyncio.Protocol):
         """Set the quality level for streaming."""
         self._send_command("STREAM SETTINGS", [f"Current Quality Level: {level}"])
 
+    def set_stream_server(self, server: str) -> None:
+        """Set the streaming server (Web Presenter)."""
+        self._send_command("STREAM SETTINGS", [f"Current Server: {server}"])
+
+    def set_stream_url(self, url: str) -> None:
+        """Set a custom streaming URL (Web Presenter, if Customizable URL is true)."""
+        self._send_command("STREAM SETTINGS", [f"Current URL: {url}"])
+
+    def set_stream_password(self, password: str) -> None:
+        """Set the SRT stream password (Web Presenter)."""
+        self._send_command("STREAM SETTINGS", [f"Password: {password}"])
+
+    def set_audio_source(self, source: str) -> None:
+        """Set the monitor output audio source (Web Presenter).
+
+        Valid values: Auto, SDI In, Remote Source
+        """
+        self._send_command("AUDIO SETTINGS", [f"Current Monitor Out Audio Source: {source}"])
+
+    def set_device_label(self, label: str) -> None:
+        """Set the device label (Web Presenter / Teranex)."""
+        self._send_command("IDENTITY", [f"Label: {label}"])
+
+    def remove_stream_xml(self, filename: str) -> None:
+        """Remove a custom stream XML file from the Web Presenter."""
+        self._send_command("STREAM XML", [f"Action: Remove", f"Files: {filename}"])
+
+    def remove_all_stream_xml(self) -> None:
+        """Remove all custom stream XML files from the Web Presenter."""
+        self._send_command("STREAM XML", ["Action: Remove All"])
+
     def set_lut(self, lut_id: int | str) -> None:
         """Set the LUT for Teranex devices."""
         if isinstance(lut_id, int):
@@ -543,6 +610,26 @@ class SmartVideoHub(asyncio.Protocol):
     def get_video_output_status(self) -> dict[int, str]:
         """Return hardware status of video outputs."""
         return self.video_output_status
+
+    def get_audio_settings(self) -> dict[str, str]:
+        """Return audio settings (Web Presenter)."""
+        return self.audio_settings
+
+    def get_version_info(self) -> dict[str, str]:
+        """Return hardware/software version info (Web Presenter)."""
+        return self.version_info
+
+    def get_network_info(self) -> dict[str, str]:
+        """Return network configuration (Web Presenter)."""
+        return self.network_info
+
+    def get_network_interfaces(self) -> dict[int, dict[str, str]]:
+        """Return network interface details (Web Presenter)."""
+        return self.network_interfaces
+
+    def get_stream_state(self) -> dict[str, str]:
+        """Return the full stream state including bitrate, duration, etc."""
+        return self.stream_state
 
     # ------------------------------------------------------------------
     # Callbacks

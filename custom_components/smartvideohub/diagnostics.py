@@ -51,4 +51,12 @@ async def async_get_config_entry_diagnostics(
         "video_output_status": {
             str(k): v for k, v in client.video_output_status.items()
         },
+        "stream_settings": dict(client.stream_set) if client.stream_set else {},
+        "stream_state": dict(client.stream_state) if client.stream_state else {},
+        "audio_settings": dict(client.audio_settings) if client.audio_settings else {},
+        "version_info": dict(client.version_info) if client.version_info else {},
+        "network_info": dict(client.network_info) if client.network_info else {},
+        "network_interfaces": {
+            str(k): dict(v) for k, v in client.network_interfaces.items()
+        } if client.network_interfaces else {},
     }

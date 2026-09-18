@@ -45,6 +45,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
                 StreamingSelectDevice(hass, dev, entity_prefix, "platform", device_info),
                 StreamingSelectDevice(hass, dev, entity_prefix, "quality_level", device_info),
                 StreamingSelectDevice(hass, dev, entity_prefix, "video_mode", device_info),
+                StreamingSelectDevice(hass, dev, entity_prefix, "server", device_info),
+                StreamingSelectDevice(hass, dev, entity_prefix, "audio_source", device_info),
             ]
         )
     elif dev.model == MODEL_TERANEX:
@@ -133,6 +135,19 @@ class StreamingSelectDevice(SelectEntity):
             self._attr_options = ["none"] + [f"Lut {x}" for x in range(num_luts)]
             self._attr_current_option = self._dev.teranex_set.get("Lut selection", "none")
             self._attr_available = self._dev.connected
+        elif self._attr_translation_key == "server":
+            self._attr_current_option = self._dev.stream_set.get("Current Server")
+            servers = self._dev.stream_set.get("Available Servers", "")
+            self._attr_options = servers.split(", ") if servers else []
+            self._attr_available = (
+                self._dev.stream_state.get("Status") == "Idle"
+                and self._dev.connected
+            )
+        elif self._attr_translation_key == "audio_source":
+            self._attr_current_option = self._dev.audio_settings.get("Current Monitor Out Audio Source")
+            sources = self._dev.audio_settings.get("Available Monitor Out Audio Sources", "")
+            self._attr_options = sources.split(", ") if sources else []
+            self._attr_available = self._dev.connected
 
     async def async_select_option(self, option: str) -> None:
         """Select an option."""
@@ -145,6 +160,10 @@ class StreamingSelectDevice(SelectEntity):
             self._dev.set_quality_level(option)
         elif self._attr_translation_key == "lut":
             self._dev.set_lut(option)
+        elif self._attr_translation_key == "server":
+            self._dev.set_stream_server(option)
+        elif self._attr_translation_key == "audio_source":
+            self._dev.set_audio_source(option)
         self.async_write_ha_state()
 
     @callback

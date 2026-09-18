@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to your Blackmagic Video Hub",
-        "description": "Enter the IP address of your Videohub device.",
+        "description": "Enter the IP address of your Videohub (port 9990) or Web Presenter (port 9977).",
         "data": {
           "host": "Host IP address",
           "port": "Port (default 9990)",
@@ -28,13 +28,18 @@
       "platform": "Stream Platform",
       "video_mode": "Video Mode",
       "quality_level": "Quality Level",
-      "lut": "LUT Selection"
+      "lut": "LUT Selection",
+      "server": "Stream Server",
+      "audio_source": "Monitor Audio Source"
     },
     "switch": {
       "streaming": "Streaming"
     },
     "text": {
-      "stream_key": "Stream Key"
+      "stream_key": "Stream Key",
+      "stream_url": "Stream URL",
+      "stream_password": "Stream Password",
+      "device_label": "Device Label"
     },
     "sensor": {
       "connection_status": "Connection Status"

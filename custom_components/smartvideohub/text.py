@@ -72,6 +72,36 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
                 device_info,
             )
         )
+        # Stream URL (if customizable)
+        entities.append(
+            StreamingInputDevice(
+                hass,
+                dev,
+                entity_prefix,
+                "stream_url",
+                device_info,
+            )
+        )
+        # Stream password (for SRT)
+        entities.append(
+            StreamingInputDevice(
+                hass,
+                dev,
+                entity_prefix,
+                "stream_password",
+                device_info,
+            )
+        )
+        # Device label
+        entities.append(
+            StreamingInputDevice(
+                hass,
+                dev,
+                entity_prefix,
+                "device_label",
+                device_info,
+            )
+        )
 
     if entities:
         async_add_entities(entities, True)
@@ -160,12 +190,11 @@ class VideoHubLabelText(TextEntity):
 
 
 class StreamingInputDevice(TextEntity):
-    """Text entity for the stream key on Web Presenter devices."""
+    """Text entity for Web Presenter streaming settings and device label."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_mode = TextMode.TEXT
-    _attr_translation_key = "stream_key"
 
     def __init__(
         self,
@@ -175,9 +204,10 @@ class StreamingInputDevice(TextEntity):
         translation_key: str,
         device_info: DeviceInfo,
     ) -> None:
-        """Initialize the stream key text entity."""
+        """Initialize the streaming text entity."""
         self.hass = hass
         self._dev = dev
+        self._attr_translation_key = translation_key
         self._attr_unique_id = async_generate_entity_id(
             ENTITY_ID_FORMAT,
             f"{entity_prefix}/{translation_key}",
@@ -186,6 +216,18 @@ class StreamingInputDevice(TextEntity):
         self._attr_device_info = device_info
         self._attr_available = False
         self._attr_native_value = None
+
+        # Set icon based on type
+        if translation_key == "stream_key":
+            self._attr_icon = "mdi:key"
+        elif translation_key == "stream_url":
+            self._attr_icon = "mdi:link"
+        elif translation_key == "stream_password":
+            self._attr_icon = "mdi:lock-outline"
+            self._attr_mode = TextMode.PASSWORD
+        elif translation_key == "device_label":
+            self._attr_icon = "mdi:label"
+
         self._dev.add_update_callback(self.update_callback)
 
     def update_callback(self, output_id: int | bool = 0) -> None:
@@ -195,14 +237,34 @@ class StreamingInputDevice(TextEntity):
 
     def update(self) -> None:
         """Retrieve latest state."""
-        self._attr_native_value = self._dev.stream_set.get("Stream Key")
-        self._attr_available = (
-            self._dev.stream_state.get("Status") == "Idle"
-            and self._dev.connected
-        )
+        key = self._attr_translation_key
+        if key == "stream_key":
+            self._attr_native_value = self._dev.stream_set.get("Stream Key")
+            self._attr_available = (
+                self._dev.stream_state.get("Status") == "Idle"
+                and self._dev.connected
+            )
+        elif key == "stream_url":
+            self._attr_native_value = self._dev.stream_set.get("Current URL")
+            customizable = self._dev.stream_set.get("Customizable URL", "false")
+            self._attr_available = customizable == "true" and self._dev.connected
+        elif key == "stream_password":
+            self._attr_native_value = self._dev.stream_set.get("Password", "")
+            self._attr_available = self._dev.connected
+        elif key == "device_label":
+            self._attr_native_value = self._dev.name
+            self._attr_available = self._dev.connected
 
     async def async_set_value(self, value: str) -> None:
-        """Set the stream key value."""
+        """Set the value."""
+        key = self._attr_translation_key
         self._attr_native_value = value
-        self._dev.set_stream_key(value)
+        if key == "stream_key":
+            self._dev.set_stream_key(value)
+        elif key == "stream_url":
+            self._dev.set_stream_url(value)
+        elif key == "stream_password":
+            self._dev.set_stream_password(value)
+        elif key == "device_label":
+            self._dev.set_device_label(value)
         self.async_write_ha_state()
