@@ -1,0 +1,84 @@
+route_output:
+  name: Route Output
+  description: Route a specific output port to an input port on the Videohub.
+  target:
+    entity:
+      integration: smartvideohub
+      domain: media_player
+  fields:
+    output:
+      name: Output
+      description: The output port number (1-based) or label name.
+      required: true
+      example: 1
+      selector:
+        text: {}
+    input:
+      name: Input
+      description: The input port number (1-based) or label name.
+      required: true
+      example: 3
+      selector:
+        text: {}
+
+route_all_outputs:
+  name: Route All Outputs
+  description: Route all output ports to the same input on the Videohub.
+  target:
+    entity:
+      integration: smartvideohub
+      domain: media_player
+  fields:
+    input:
+      name: Input
+      description: The input port number (1-based) or label name to route all outputs to.
+      required: true
+      example: 1
+      selector:
+        text: {}
+
+swap_outputs:
+  name: Swap Outputs
+  description: Swap the input routing of two output ports.
+  target:
+    entity:
+      integration: smartvideohub
+      domain: media_player
+  fields:
+    output_1:
+      name: Output 1
+      description: The first output port number or label name.
+      required: true
+      example: 1
+      selector:
+        text: {}
+    output_2:
+      name: Output 2
+      description: The second output port number or label name.
+      required: true
+      example: 2
+      selector:
+        text: {}
+
+route_by_name:
+  name: Route By Name
+  description: Route an output to an input using their human-readable label names.
+  target:
+    entity:
+      integration: smartvideohub
+      domain: media_player
+  fields:
+    output_name:
+      name: Output Name
+      description: The label name of the output port.
+      required: true
+      example: "Projector"
+      selector:
+        text: {}
+    input_name:
+      name: Input Name
+      description: The label name of the input port.
+      required: true
+      example: "Camera 1"
+      selector:
+        text: {}

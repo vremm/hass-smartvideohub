@@ -37,16 +37,20 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
     )
 
     if dev.model == MODEL_VIDEOHUB:
+        entity_prefix = dev.attrs.get("Unique ID", dev.name)
+
+        # Main video outputs
         _LOGGER.info("Adding %i media_player outputs", len(dev.get_outputs()))
         async_add_entities(
             [
                 SmartVideoHubOutput(
                     hass,
                     dev,
-                    dev.attrs.get("Unique ID", dev.name),
+                    entity_prefix,
                     output_number,
                     output,
                     device_info,
+                    is_monitoring=False,
                     hide_default_inputs=config_entry.data.get(
                         CONF_HIDE_DEFAULT_INPUTS, False
                     ),
@@ -55,6 +59,29 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
             ],
             True,
         )
+
+        # Monitoring outputs (if any)
+        mon_outputs = dev.get_monitoring_outputs()
+        if mon_outputs:
+            _LOGGER.info("Adding %i media_player monitoring outputs", len(mon_outputs))
+            async_add_entities(
+                [
+                    SmartVideoHubOutput(
+                        hass,
+                        dev,
+                        entity_prefix,
+                        mon_number,
+                        mon_output,
+                        device_info,
+                        is_monitoring=True,
+                        hide_default_inputs=config_entry.data.get(
+                            CONF_HIDE_DEFAULT_INPUTS, False
+                        ),
+                    )
+                    for mon_number, mon_output in mon_outputs.items()
+                ],
+                True,
+            )
 
 
 class SmartVideoHubOutput(MediaPlayerEntity):
@@ -72,21 +99,24 @@ class SmartVideoHubOutput(MediaPlayerEntity):
         output_number: int,
         output: dict,
         device_info: DeviceInfo,
+        is_monitoring: bool = False,
         hide_default_inputs: bool = False,
     ) -> None:
         """Initialize the output entity."""
-        _LOGGER.info("Adding SmartVideoHub output %i", output_number)
+        _LOGGER.info("Adding SmartVideoHub %soutput %i", "monitoring " if is_monitoring else "", output_number)
         self.hass = hass
         self._smartvideohub = smartvideohub
         self._output_id = output_number
-        self._output_name = output.get("name", f"Output {output_number}")
+        self._is_monitoring = is_monitoring
+        self._output_name = output.get("name", f"{'Monitor' if is_monitoring else 'Output'} {output_number}")
         self._source_id = output.get("input")
         self._hide_default_inputs = hide_default_inputs
 
-        self._attr_unique_id = f"{entity_prefix}_output_{self._output_id}"
+        port_label = "monitor" if is_monitoring else "output"
+        self._attr_unique_id = f"{entity_prefix}_{port_label}_{self._output_id}"
         self.entity_id = async_generate_entity_id(
             ENTITY_ID_FORMAT,
-            f"{entity_prefix} output {self._output_id}",
+            f"{entity_prefix} {port_label} {self._output_id}",
             hass=hass,
         )
         self._attr_device_info = device_info
@@ -106,11 +136,14 @@ class SmartVideoHubOutput(MediaPlayerEntity):
 
     def _update_state(self) -> None:
         """Retrieve latest state from the client."""
-        outputs = self._smartvideohub.get_outputs()
+        if self._is_monitoring:
+            outputs = self._smartvideohub.get_monitoring_outputs()
+        else:
+            outputs = self._smartvideohub.get_outputs()
         if self._output_id in outputs:
             output = outputs[self._output_id]
-            self._output_name = output.get("name", f"Output {self._output_id}")
-            self._source_id = self._smartvideohub.get_selected_input(self._output_id)
+            self._output_name = output.get("name", f"{'Monitor' if self._is_monitoring else 'Output'} {self._output_id}")
+            self._source_id = output.get("input")
             self._attr_name = self._output_name
             if self._source_id:
                 self._attr_source = self._smartvideohub.get_input_name(self._source_id)

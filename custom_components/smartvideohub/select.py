@@ -5,6 +5,8 @@ Provides select entities for:
   - Video mode (Web Presenter)
   - Quality level (Web Presenter)
   - LUT selection (Teranex)
+  - Serial port direction (control/slave/auto) — Videohub
+  - Serial port routing — Videohub
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity import DeviceInfo, async_generate_entity_id
 
 from .const import DOMAIN
-from .pyvideohub import MODEL_STREAMING, MODEL_TERANEX, SmartVideoHub
+from .pyvideohub import MODEL_STREAMING, MODEL_TERANEX, MODEL_VIDEOHUB, SmartVideoHub
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +51,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities) -> None:
         entities.append(
             StreamingSelectDevice(hass, dev, entity_prefix, "lut", device_info)
         )
+
+    if dev.model == MODEL_VIDEOHUB:
+        # Serial port direction selects
+        for port_number, port_label in dev.serial_ports.items():
+            entities.append(
+                SerialPortDirectionSelect(hass, dev, entity_prefix, port_number, port_label, device_info)
+            )
+        # Serial port routing selects
+        for port_number, port_label in dev.serial_ports.items():
+            entities.append(
+                SerialPortRoutingSelect(hass, dev, entity_prefix, port_number, port_label, device_info)
+            )
 
     if entities:
         async_add_entities(entities, True)
@@ -137,4 +151,112 @@ class StreamingSelectDevice(SelectEntity):
     def update_callback(self, output_id: int | bool = 0) -> None:
         """Called when data is received."""
         self.update()
+        self.async_write_ha_state()
+
+
+class SerialPortDirectionSelect(SelectEntity):
+    """Select entity for serial port direction (control/slave/auto)."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:serial-port"
+
+    def __init__(
+        self,
+        hass,
+        dev: SmartVideoHub,
+        entity_prefix: str,
+        port_number: int,
+        port_label: str,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the serial port direction select."""
+        self.hass = hass
+        self._dev = dev
+        self._port_number = port_number
+        self._attr_unique_id = f"{entity_prefix}_serial_dir_{port_number}"
+        self._attr_name = f"{port_label} Direction"
+        self._attr_options = ["control", "slave", "auto"]
+        self._attr_current_option = dev.serial_port_directions.get(port_number, "auto")
+        self.entity_id = async_generate_entity_id(
+            ENTITY_ID_FORMAT, f"{entity_prefix} serial {port_number} direction", hass=hass
+        )
+        self._attr_device_info = device_info
+        dev.add_update_callback(self._handle_update)
+
+    @property
+    def available(self) -> bool:
+        """Return whether the device is connected."""
+        return self._dev.connected
+
+    async def async_select_option(self, option: str) -> None:
+        """Select the serial port direction."""
+        self._dev.set_serial_port_direction(self._port_number, option)
+        self._attr_current_option = option
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_update(self, output_id: int | bool = 0) -> None:
+        """Update when data received."""
+        self._attr_current_option = self._dev.serial_port_directions.get(
+            self._port_number, "auto"
+        )
+        self.async_write_ha_state()
+
+
+class SerialPortRoutingSelect(SelectEntity):
+    """Select entity for routing a serial port to a video input."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:connection"
+
+    def __init__(
+        self,
+        hass,
+        dev: SmartVideoHub,
+        entity_prefix: str,
+        port_number: int,
+        port_label: str,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the serial port routing select."""
+        self.hass = hass
+        self._dev = dev
+        self._port_number = port_number
+        self._attr_unique_id = f"{entity_prefix}_serial_route_{port_number}"
+        self._attr_name = f"{port_label} Source"
+        self._attr_options = list(dev.get_inputs().values())
+        routed_input = dev.serial_port_routing.get(port_number)
+        if routed_input:
+            self._attr_current_option = dev.get_input_name(routed_input)
+        else:
+            self._attr_current_option = None
+        self.entity_id = async_generate_entity_id(
+            ENTITY_ID_FORMAT, f"{entity_prefix} serial {port_number} route", hass=hass
+        )
+        self._attr_device_info = device_info
+        dev.add_update_callback(self._handle_update)
+
+    @property
+    def available(self) -> bool:
+        """Return whether the device is connected."""
+        return self._dev.connected
+
+    async def async_select_option(self, option: str) -> None:
+        """Route the serial port to the selected input."""
+        input_list = self._dev.get_input_list()
+        if option in input_list:
+            input_number = list(self._dev.get_inputs().keys())[
+                list(self._dev.get_inputs().values()).index(option)
+            ]
+            self._dev.set_serial_port_routing(self._port_number, input_number)
+            self._attr_current_option = option
+            self.async_write_ha_state()
+
+    @callback
+    def _handle_update(self, output_id: int | bool = 0) -> None:
+        """Update when data received."""
+        self._attr_options = list(self._dev.get_inputs().values())
+        routed_input = self._dev.serial_port_routing.get(self._port_number)
+        if routed_input:
+            self._attr_current_option = self._dev.get_input_name(routed_input)
         self.async_write_ha_state()

@@ -1,0 +1,67 @@
+blueprint:
+  name: Videohub — Select Input for Display
+  description: >
+    When a display device (TV, projector, monitor) is turned on,
+    automatically route a selected input on the Blackmagic Videohub
+    to the corresponding output port. When the display is turned off,
+    optionally route the output back to a default input.
+  domain: automation
+  input:
+    display_device:
+      name: Display Device
+      description: The TV/projector/monitor to watch for power state.
+      selector:
+        entity:
+          domain: media_player
+    videohub_output:
+      name: Videohub Output
+      description: The Videohub output media_player entity connected to this display.
+      selector:
+        entity:
+          integration: smartvideohub
+          domain: media_player
+    input_when_on:
+      name: Input When Display On
+      description: The input label to route to the output when the display turns on.
+      default: ""
+      selector:
+        text: {}
+    input_when_off:
+      name: Input When Display Off
+      description: Optional — route to this input when the display turns off. Leave blank to leave routing unchanged.
+      default: ""
+      selector:
+        text: {}
+
+trigger:
+  - platform: state
+    entity_id: !input display_device
+    to: "on"
+    id: "display_on"
+  - platform: state
+    entity_id: !input display_device
+    to: "off"
+    id: "display_off"
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "display_on"
+        sequence:
+          - service: media_player.select_source
+            target:
+              entity_id: !input videohub_output
+            data:
+              source: !input input_when_on
+      - conditions:
+          - condition: trigger
+            id: "display_off"
+          - condition: template
+            value_template: "{{ input_when_off != '' }}"
+        sequence:
+          - service: media_player.select_source
+            target:
+              entity_id: !input videohub_output
+            data:
+              source: !input input_when_off

@@ -35,6 +35,9 @@
     },
     "text": {
       "stream_key": "Stream Key"
+    },
+    "sensor": {
+      "connection_status": "Connection Status"
     }
   }
 }

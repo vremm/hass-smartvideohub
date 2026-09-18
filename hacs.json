@@ -6,7 +6,8 @@
         "select",
         "text",
         "button",
-        "switch"
+        "switch",
+        "sensor"
     ],
     "render_readme": true
 }

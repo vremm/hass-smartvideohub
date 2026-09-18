@@ -64,4 +64,16 @@ PLATFORMS = [
     "button",
     "switch",
     "lock",
+    "sensor",
 ]
+
+# Service names
+SERVICE_ROUTE_OUTPUT = "route_output"
+SERVICE_ROUTE_ALL_OUTPUTS = "route_all_outputs"
+SERVICE_SWAP_OUTPUTS = "swap_outputs"
+SERVICE_ROUTE_BY_NAME = "route_by_name"
+
+# Serial port directions
+SERIAL_DIR_CONTROL = "control"
+SERIAL_DIR_SLAVE = "slave"
+SERIAL_DIR_AUTO = "auto"

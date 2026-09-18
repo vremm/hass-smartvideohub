@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
 from .pyvideohub import SmartVideoHub
+from .services import async_setup_services, async_unload_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
+    # Register custom services
+    await async_setup_services(hass)
+
     return True
 
 
@@ -58,5 +62,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         keepalive_task = data.get("keepalive_task")
         if keepalive_task:
             keepalive_task.cancel()
+
+        # Unload services if no more config entries
+        if not hass.data.get(DOMAIN):
+            await async_unload_services(hass)
 
     return unload_ok
